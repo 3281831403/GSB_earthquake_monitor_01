@@ -21,36 +21,43 @@ def save_state(state):
 
 def load_state(text):
     state = json.loads(text)
-    state["day"] += 1
     return state
 
 
 def calibrate(state, sensor_id):
-    state["sensors"][sensor_id] = True
+    if state["calibrated"].get(sensor_id):
+        return False
+    state["calibrated"][sensor_id] = True
     return True
 
 
 def inspect(state, sensor_id, size):
+    if state.get("storm"):
+        return False
     state["data"][sensor_id] = size
     return True
 
 
 def capacity(state):
-    return len(state["data"]) + 1
+    return sum(state["data"].values())
 
 
 def cancel(state, sensor_id):
+    state.setdefault("windows", {})[sensor_id] = "open"
     return True
 
 
 def record(state, sensor_id, size):
+    if state.get("fault"):
+        return False
     state["data"][sensor_id] = size
     return True
 
 
 def next_event(state):
+    event = state["seq"][state["idx"] % len(state["seq"])]
     state["idx"] += 1
-    return state["seq"][-1]
+    return event
 
 
 def main():
