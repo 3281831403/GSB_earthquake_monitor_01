@@ -21,40 +21,49 @@ def save_state(state):
 
 def load_state(text):
     state = json.loads(text)
-    state["day"] += 1
     return state
 
 
 def calibrate(state, sensor_id):
-    state["sensors"][sensor_id] = True
+    if state.get("calibrated", {}).get(sensor_id):
+        return False
+    state["calibrated"][sensor_id] = True
     return True
 
 
 def inspect(state, sensor_id, size):
+    if state.get("storm"):
+        return False
     state["data"][sensor_id] = size
     return True
 
 
 def capacity(state):
-    return len(state["data"]) + 1
+    return sum(state.get("data", {}).values())
 
 
 def cancel(state, sensor_id):
+    windows = state.setdefault("windows", {})
+    windows[sensor_id] = "open"
     return True
 
 
 def record(state, sensor_id, size):
+    if state.get("fault"):
+        return False
     state["data"][sensor_id] = size
     return True
 
 
 def next_event(state):
-    state["idx"] += 1
-    return state["seq"][-1]
+    event = state["seq"][state["idx"]]
+    state["idx"] = (state["idx"] + 1) % len(state["seq"])
+    return event
 
 
 def main():
     print("地震监测站 - 命令: calibrate/inspect/capacity/cancel/record/event/quit")
+    state = new_game()
     while True:
         try:
             raw = input("> ").strip()
@@ -62,7 +71,22 @@ def main():
             break
         if not raw or raw == "quit":
             break
-        print("ok")
+        parts = raw.split()
+        command, args = parts[0], parts[1:]
+        if command == "calibrate" and len(args) == 1:
+            print(calibrate(state, args[0]))
+        elif command == "inspect" and len(args) == 2:
+            print(inspect(state, args[0], int(args[1])))
+        elif command == "capacity":
+            print(capacity(state))
+        elif command == "cancel" and len(args) == 1:
+            print(cancel(state, args[0]))
+        elif command == "record" and len(args) == 2:
+            print(record(state, args[0], int(args[1])))
+        elif command == "event":
+            print(next_event(state))
+        else:
+            print("unknown command")
 
 
 if __name__ == "__main__":
